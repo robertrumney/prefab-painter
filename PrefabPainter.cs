@@ -8,14 +8,19 @@ public class PrefabPainter : EditorWindow
     private readonly string[] rotationAxes = new string[] { "X", "Y", "Z" };
 
     private Stack<GameObject> undoStack;
+    private Vector3 lastPaintPosition = Vector3.positiveInfinity;
+    private float paintSensitivity = 1.0f;
+
+    private int rotationAxisIndex = 1;
     private float brushSize = 1.0f;
     private float prefabOffset = 0.5f;
+
     private bool randomRotation = false;
-    private Vector2 rotationRange = new(0, 360);
     private bool randomScale = false;
-    private Vector2 scaleRange = new(1.0f, 1.0f);
     private bool isPainting = false;
-    private int rotationAxisIndex = 1;
+
+    private Vector2 scaleRange = new(1.0f, 1.0f);
+    private Vector2 rotationRange = new(0, 360);
 
     [System.Serializable]
     public class PrefabEntry
@@ -68,7 +73,6 @@ public class PrefabPainter : EditorWindow
         brushSize = EditorGUILayout.Slider("Brush Size", brushSize, 0.1f, 10.0f);
         prefabOffset = EditorGUILayout.FloatField("Prefab Vertical Offset", prefabOffset);
         randomRotation = EditorGUILayout.Toggle("Random Rotation", randomRotation);
-
         if (randomRotation)
         {
             rotationAxisIndex = EditorGUILayout.Popup("Rotation Axis", rotationAxisIndex, rotationAxes);
@@ -76,11 +80,12 @@ public class PrefabPainter : EditorWindow
         }
 
         randomScale = EditorGUILayout.Toggle("Random Scale", randomScale);
-
         if (randomScale)
         {
             scaleRange = EditorGUILayout.Vector2Field("Scale Range", scaleRange);
         }
+
+        paintSensitivity = EditorGUILayout.Slider("Paint Sensitivity", paintSensitivity, 0.1f, 5.0f);
 
         if (GUILayout.Button(isPainting ? "Stop Painting" : "Start Painting"))
         {
@@ -106,15 +111,15 @@ public class PrefabPainter : EditorWindow
         Event e = Event.current;
         Ray ray = HandleUtility.GUIPointToWorldRay(e.mousePosition);
 
-        if (Physics.Raycast(ray, out RaycastHit hit))
+        if (Physics.Raycast(ray, out RaycastHit hit) && e.type == EventType.MouseDrag && e.button == 0)
         {
-            Handles.color = Color.red;
-            Handles.DrawWireDisc(hit.point, hit.normal, brushSize);
-
-            if ((e.type == EventType.MouseDown || e.type == EventType.MouseDrag) && e.button == 0)
+            if (Vector3.Distance(lastPaintPosition, hit.point) > paintSensitivity)
             {
-                e.Use();
+                Handles.color = Color.red;
+                Handles.DrawWireDisc(hit.point, hit.normal, brushSize);
                 PaintPrefab(hit.point + hit.normal * prefabOffset, hit.normal);
+                lastPaintPosition = hit.point;
+                e.Use();
             }
         }
 
@@ -124,7 +129,6 @@ public class PrefabPainter : EditorWindow
     private GameObject GetRandomPrefab()
     {
         float totalOdds = 0;
-
         foreach (var entry in prefabEntries)
         {
             totalOdds += entry.odds;
@@ -140,13 +144,13 @@ public class PrefabPainter : EditorWindow
                 return entry.prefab;
         }
 
-        // Should not happen unless totalOdds is 0
         return null;
     }
 
     private void PaintPrefab(Vector3 position, Vector3 normal)
     {
         GameObject prefabToPaint = GetRandomPrefab();
+
         if (prefabToPaint == null)
             return;
 
@@ -166,16 +170,11 @@ public class PrefabPainter : EditorWindow
         {
             float randomAngle = Random.Range(rotationRange.x, rotationRange.y);
 
-            // X-axis
             if (rotationAxisIndex == 0)
                 randomRotationVector = new Vector3(randomAngle, 0, 0);
-
-            // Y-axis
             else if (rotationAxisIndex == 1)
                 randomRotationVector = new Vector3(0, randomAngle, 0);
-
-            // Z-axis
-            else if (rotationAxisIndex == 2)
+            else
                 randomRotationVector = new Vector3(0, 0, randomAngle);
         }
 
