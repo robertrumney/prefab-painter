@@ -1,4 +1,4 @@
-# PrefabPainter
+# Prefab Painter
 
 PrefabPainter is a Unity Editor extension designed to enhance the level design process by allowing artists and developers to paint prefabs directly onto the Unity scene with adjustable settings. It supports random rotation, scaling, and weighted prefab selection to create varied and dynamic environments quickly.
 
